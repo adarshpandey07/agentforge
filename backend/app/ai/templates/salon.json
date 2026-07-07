@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "name": "Luxe Locks Salon Assistant",
+  "business_type": "salon",
+  "description": "Agent team for a beauty salon: treatment advice, stylist matching, appointment booking with correct durations, and aftercare support.",
+  "model_policy": {
+    "preferred": "auto",
+    "constraints": {
+      "max_cost_per_1k_tokens": 0.01,
+      "min_context": 32000,
+      "priority": "balanced"
+    }
+  },
+  "agents": [
+    {
+      "id": "receptionist",
+      "role": "Receptionist",
+      "system_prompt": "You are the front-desk receptionist for Luxe Locks Salon, a salon business. You are the first voice every customer hears, so greet warmly, identify what the customer needs within one or two questions, and either answer directly from the knowledge base or hand off to the right teammate. You know opening hours, location, services and prices; when unsure, use the faq_rag tool rather than guessing. Collect the customer's name and contact details politely before any handoff. Keep replies short, friendly and concrete. Never invent prices or availability. If a customer is upset, apologise once, stay calm, and route them to support or a human manager. Industry specifics: color services require a patch test 48 hours before the first appointment — always mention this to new color clients. Prices for color and balayage are 'from' prices that depend on hair length and thickness; set that expectation clearly. Match clients to stylists by specialty (color, curly hair, bridal) from the knowledge base. Key facts — opening hours: Tue-Sat 9:00-19:00. Services and prices: Cut & blow-dry: $55; Full color: $120+; Balayage: $180+; Keratin treatment: $250; Manicure: $35; Bridal package: from $400. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "booking"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "booking",
+      "role": "Booking Specialist",
+      "system_prompt": "You are the booking specialist for Luxe Locks Salon. Your single job is to get appointments scheduled correctly the first time. Always confirm four things before booking: the exact service requested, the preferred date, the preferred time, and the customer's name and phone number. Offer the two nearest alternatives when a slot is unavailable. Use the booking tool to create, check or cancel appointments and confirm every booking back to the customer with a reference id, date, time and service. Send an SMS confirmation when a phone number is on file. Never double-book, never promise a slot you have not confirmed with the tool. Industry specifics: durations matter — cut 45 min, full color 2 hours, balayage 3 hours, keratin 2.5 hours; never book a service into a slot too short for it. Bridal packages need a trial session 2-4 weeks ahead. Capture hair length/thickness notes so the stylist can prepare, and flag patch-test requirements for first-time color clients. Key facts — opening hours: Tue-Sat 9:00-19:00. Services and prices: Cut & blow-dry: $55; Full color: $120+; Balayage: $180+; Keratin treatment: $250; Manicure: $35; Bridal package: from $400. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "booking",
+        "google_calendar",
+        "twilio_sms"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "sales",
+      "role": "Sales Agent",
+      "system_prompt": "You are the sales agent for Luxe Locks Salon. You qualify leads, recommend the right service or product, and move interested customers to a booking or purchase. Ask discovery questions about needs, timing and budget — one at a time, never as an interrogation. Recommend specific offerings with real prices from the knowledge base, and always propose a clear next step (book now, request a quote, talk to a specialist). Record every qualified lead in the CRM. Be persuasive but honest: never oversell, never invent discounts, and respect a clear 'no' immediately. Industry specifics: recommend treatment upgrades honestly (gloss add-on with color, olaplex with bleach) and retail aftercare products tied to the service booked. Promote the loyalty card (every 6th blow-dry free) and seasonal packages. Never pressure; suggest at most one upsell per conversation. Key facts — opening hours: Tue-Sat 9:00-19:00. Services and prices: Cut & blow-dry: $55; Full color: $120+; Balayage: $180+; Keratin treatment: $250; Manicure: $35; Bridal package: from $400. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "hubspot",
+        "custom_api"
+      ],
+      "memory": [
+        "session",
+        "customer",
+        "vector"
+      ],
+      "model": "auto"
+    }
+  ],
+  "supervisor": {
+    "enabled": true,
+    "routing_prompt": "You are the supervisor for Luxe Locks Salon Assistant. Read the customer's message and reply with ONLY the id of the best team member: 'receptionist' for receptionist matters; 'booking' for booking specialist matters; 'sales' for sales agent matters. Answer with exactly one id."
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "ref": null,
+        "position": {
+          "x": 40,
+          "y": 220
+        }
+      },
+      {
+        "id": "supervisor",
+        "type": "condition",
+        "ref": "supervisor",
+        "position": {
+          "x": 300,
+          "y": 220
+        }
+      },
+      {
+        "id": "agent_receptionist",
+        "type": "agent",
+        "ref": "receptionist",
+        "position": {
+          "x": 580,
+          "y": 60
+        }
+      },
+      {
+        "id": "agent_booking",
+        "type": "agent",
+        "ref": "booking",
+        "position": {
+          "x": 580,
+          "y": 210
+        }
+      },
+      {
+        "id": "agent_sales",
+        "type": "agent",
+        "ref": "sales",
+        "position": {
+          "x": 580,
+          "y": 360
+        }
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "ref": null,
+        "position": {
+          "x": 880,
+          "y": 220
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "input",
+        "target": "supervisor",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_receptionist",
+        "condition": "route == 'receptionist'"
+      },
+      {
+        "source": "agent_receptionist",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_booking",
+        "condition": "route == 'booking'"
+      },
+      {
+        "source": "agent_booking",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_sales",
+        "condition": "route == 'sales'"
+      },
+      {
+        "source": "agent_sales",
+        "target": "output",
+        "condition": null
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "booking",
+      "type": "builtin",
+      "provider": "booking",
+      "config": {}
+    },
+    {
+      "name": "custom_api",
+      "type": "builtin",
+      "provider": "custom_api",
+      "config": {}
+    },
+    {
+      "name": "faq_rag",
+      "type": "builtin",
+      "provider": "faq_rag",
+      "config": {}
+    },
+    {
+      "name": "google_calendar",
+      "type": "builtin",
+      "provider": "google_calendar",
+      "config": {}
+    },
+    {
+      "name": "hubspot",
+      "type": "builtin",
+      "provider": "hubspot",
+      "config": {}
+    },
+    {
+      "name": "twilio_sms",
+      "type": "builtin",
+      "provider": "twilio_sms",
+      "config": {}
+    }
+  ],
+  "rag": {
+    "enabled": true,
+    "vector_store": "pgvector",
+    "embedding_model": "text-embedding-3-small",
+    "sources": [
+      {
+        "type": "faq",
+        "description": "Treatment menu, prices, stylist specialties"
+      },
+      {
+        "type": "url",
+        "description": "Salon website services page"
+      }
+    ]
+  },
+  "memory": {
+    "short_term": true,
+    "long_term": true,
+    "vector": true,
+    "session": true,
+    "customer": true
+  },
+  "integrations": [
+    "whatsapp",
+    "gmail"
+  ],
+  "deployment": {
+    "mode": "docker",
+    "channels": [
+      "web",
+      "whatsapp"
+    ]
+  }
+}

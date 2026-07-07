@@ -1,0 +1,52 @@
+# AgentForge — Render Blueprint (production recipe)
+# Deploy: Render Dashboard → New → Blueprint → pick this repo. Render reads this file
+# and provisions Postgres + backend API + frontend. RabbitMQ/Celery are omitted here
+# (document ingestion has a synchronous fallback); add a Redis Key Value + worker
+# service later if you want async pipelines.
+#
+# NOTE: NEXT_PUBLIC_API_URL is baked at build time. After the first deploy, set it on
+# the frontend service to the backend's public URL + "/api/v1" and redeploy the
+# frontend (Render `fromService` only exposes host, not a full https URL + path).
+
+databases:
+  - name: agentforge-db
+    databaseName: agentforge
+    user: agentforge
+    plan: free
+
+services:
+  - type: web
+    name: agentforge-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements-render.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agentforge-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+
+  - type: web
+    name: agentforge-frontend
+    runtime: node
+    plan: free
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -p $PORT
+    autoDeploy: true
+    envVars:
+      # Set to https://<agentforge-backend URL>/api/v1 after the backend's first deploy.
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NODE_VERSION
+        value: "20.11.1"

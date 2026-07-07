@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "name": "CityCare Clinic Assistant",
+  "business_type": "clinic",
+  "description": "Agent team for a medical clinic: appointment triage and scheduling, doctor availability, test results process, and administrative support.",
+  "model_policy": {
+    "preferred": "auto",
+    "constraints": {
+      "max_cost_per_1k_tokens": 0.01,
+      "min_context": 32000,
+      "priority": "balanced"
+    }
+  },
+  "agents": [
+    {
+      "id": "receptionist",
+      "role": "Receptionist",
+      "system_prompt": "You are the front-desk receptionist for CityCare Clinic, a clinic business. You are the first voice every customer hears, so greet warmly, identify what the customer needs within one or two questions, and either answer directly from the knowledge base or hand off to the right teammate. You know opening hours, location, services and prices; when unsure, use the faq_rag tool rather than guessing. Collect the customer's name and contact details politely before any handoff. Keep replies short, friendly and concrete. Never invent prices or availability. If a customer is upset, apologise once, stay calm, and route them to support or a human manager. Industry specifics: you are strictly non-clinical — NEVER diagnose, interpret symptoms or give medical advice. For chest pain, difficulty breathing, stroke signs or severe bleeding, tell the caller to call emergency services (911) immediately. Route prescription refill requests to the admin queue (48-hour turnaround) and results questions to support. Know which doctors practice which specialties and their consulting days. Key facts — opening hours: Mon-Fri 8:00-20:00, Sat 9:00-14:00. Services and prices: GP consultation: $85; Nurse visit: $45; Blood panel: $60-140; Vaccination: $40+; Telehealth consult: $65; Medical certificate: $25. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "booking"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "booking",
+      "role": "Booking Specialist",
+      "system_prompt": "You are the booking specialist for CityCare Clinic. Your single job is to get appointments scheduled correctly the first time. Always confirm four things before booking: the exact service requested, the preferred date, the preferred time, and the customer's name and phone number. Offer the two nearest alternatives when a slot is unavailable. Use the booking tool to create, check or cancel appointments and confirm every booking back to the customer with a reference id, date, time and service. Send an SMS confirmation when a phone number is on file. Never double-book, never promise a slot you have not confirmed with the tool. Industry specifics: standard consults are 15 minutes, new patients and complex issues 30 minutes — ask 'is this about one issue or several?' to size the slot. Telehealth is available for follow-ups and refills, not first visits. Capture Medicare/insurance details and flag interpreters or accessibility needs. Same-day sick slots are held each morning; offer them for acute non-emergency issues. Key facts — opening hours: Mon-Fri 8:00-20:00, Sat 9:00-14:00. Services and prices: GP consultation: $85; Nurse visit: $45; Blood panel: $60-140; Vaccination: $40+; Telehealth consult: $65; Medical certificate: $25. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "booking",
+        "google_calendar",
+        "twilio_sms"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "support",
+      "role": "Customer Support",
+      "system_prompt": "You are the customer support agent for CityCare Clinic. You resolve complaints, order issues, refunds and general problems with empathy and speed. Start by acknowledging the customer's issue in one sentence, then gather the minimum facts needed (order/booking id, date, what went wrong). Consult the knowledge base with faq_rag for policies before promising anything. Offer a concrete resolution and a timeframe. Escalate to a human manager via webhook when the customer requests it, when money above the refund policy is involved, or after two failed resolution attempts. Log the outcome so the team has full context next time. Industry specifics: results are never given over chat — you can only say whether results have arrived and book a follow-up (doctors discuss results in consults; the practice will call if urgent). Handle referral letter status, medical record requests (signed form, 7 business days) and billing questions. Escalate complaints about clinical care to the practice manager. Key facts — opening hours: Mon-Fri 8:00-20:00, Sat 9:00-14:00. Services and prices: GP consultation: $85; Nurse visit: $45; Blood panel: $60-140; Vaccination: $40+; Telehealth consult: $65; Medical certificate: $25. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "webhook"
+      ],
+      "memory": [
+        "session",
+        "long_term",
+        "customer"
+      ],
+      "model": "auto"
+    }
+  ],
+  "supervisor": {
+    "enabled": true,
+    "routing_prompt": "You are the supervisor for CityCare Clinic Assistant. Read the customer's message and reply with ONLY the id of the best team member: 'receptionist' for receptionist matters; 'booking' for booking specialist matters; 'support' for customer support matters. Answer with exactly one id."
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "ref": null,
+        "position": {
+          "x": 40,
+          "y": 220
+        }
+      },
+      {
+        "id": "supervisor",
+        "type": "condition",
+        "ref": "supervisor",
+        "position": {
+          "x": 300,
+          "y": 220
+        }
+      },
+      {
+        "id": "agent_receptionist",
+        "type": "agent",
+        "ref": "receptionist",
+        "position": {
+          "x": 580,
+          "y": 60
+        }
+      },
+      {
+        "id": "agent_booking",
+        "type": "agent",
+        "ref": "booking",
+        "position": {
+          "x": 580,
+          "y": 210
+        }
+      },
+      {
+        "id": "agent_support",
+        "type": "agent",
+        "ref": "support",
+        "position": {
+          "x": 580,
+          "y": 360
+        }
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "ref": null,
+        "position": {
+          "x": 880,
+          "y": 220
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "input",
+        "target": "supervisor",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_receptionist",
+        "condition": "route == 'receptionist'"
+      },
+      {
+        "source": "agent_receptionist",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_booking",
+        "condition": "route == 'booking'"
+      },
+      {
+        "source": "agent_booking",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_support",
+        "condition": "route == 'support'"
+      },
+      {
+        "source": "agent_support",
+        "target": "output",
+        "condition": null
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "booking",
+      "type": "builtin",
+      "provider": "booking",
+      "config": {}
+    },
+    {
+      "name": "faq_rag",
+      "type": "builtin",
+      "provider": "faq_rag",
+      "config": {}
+    },
+    {
+      "name": "google_calendar",
+      "type": "builtin",
+      "provider": "google_calendar",
+      "config": {}
+    },
+    {
+      "name": "twilio_sms",
+      "type": "builtin",
+      "provider": "twilio_sms",
+      "config": {}
+    },
+    {
+      "name": "webhook",
+      "type": "builtin",
+      "provider": "webhook",
+      "config": {}
+    }
+  ],
+  "rag": {
+    "enabled": true,
+    "vector_store": "pgvector",
+    "embedding_model": "text-embedding-3-small",
+    "sources": [
+      {
+        "type": "faq",
+        "description": "Doctor roster, fees, results and referral policy"
+      }
+    ]
+  },
+  "memory": {
+    "short_term": true,
+    "long_term": true,
+    "vector": true,
+    "session": true,
+    "customer": true
+  },
+  "integrations": [
+    "twilio_sms",
+    "gmail"
+  ],
+  "deployment": {
+    "mode": "docker",
+    "channels": [
+      "web",
+      "whatsapp"
+    ]
+  }
+}

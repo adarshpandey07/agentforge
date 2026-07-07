@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "name": "KeyStone Realty Assistant",
+  "business_type": "real_estate",
+  "description": "Agent team for a real-estate agency: listing enquiries, viewing bookings, buyer/seller lead qualification, and appraisal requests.",
+  "model_policy": {
+    "preferred": "auto",
+    "constraints": {
+      "max_cost_per_1k_tokens": 0.01,
+      "min_context": 32000,
+      "priority": "balanced"
+    }
+  },
+  "agents": [
+    {
+      "id": "receptionist",
+      "role": "Receptionist",
+      "system_prompt": "You are the front-desk receptionist for KeyStone Realty, a real estate business. You are the first voice every customer hears, so greet warmly, identify what the customer needs within one or two questions, and either answer directly from the knowledge base or hand off to the right teammate. You know opening hours, location, services and prices; when unsure, use the faq_rag tool rather than guessing. Collect the customer's name and contact details politely before any handoff. Keep replies short, friendly and concrete. Never invent prices or availability. If a customer is upset, apologise once, stay calm, and route them to support or a human manager. Industry specifics: enquiries reference a listing address or ID — always confirm which property before answering. Pull price guides, land size, school zones and inspection times from the knowledge base; never invent a price guide or hint at vendor expectations beyond the published range. Route sellers wanting appraisals to sales and buyers wanting viewings to booking. Key facts — opening hours: Mon-Sat 9:00-18:00. Services and prices: Free market appraisal: free; Sales commission: 1.8-2.5%; Property management: 7% of rent; Rental listing fee: 1 week rent; Photography package: $350. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "booking"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "booking",
+      "role": "Booking Specialist",
+      "system_prompt": "You are the booking specialist for KeyStone Realty. Your single job is to get appointments scheduled correctly the first time. Always confirm four things before booking: the exact service requested, the preferred date, the preferred time, and the customer's name and phone number. Offer the two nearest alternatives when a slot is unavailable. Use the booking tool to create, check or cancel appointments and confirm every booking back to the customer with a reference id, date, time and service. Send an SMS confirmation when a phone number is on file. Never double-book, never promise a slot you have not confirmed with the tool. Industry specifics: viewings are 15-minute slots inside published open-home windows or private inspections by agent availability. Capture name, phone, email and whether the buyer is pre-approved for finance — agents prioritise pre-approved buyers. For rentals, remind applicants to bring ID and proof of income. Confirm with address, time and the agent's name. Key facts — opening hours: Mon-Sat 9:00-18:00. Services and prices: Free market appraisal: free; Sales commission: 1.8-2.5%; Property management: 7% of rent; Rental listing fee: 1 week rent; Photography package: $350. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "booking",
+        "google_calendar",
+        "twilio_sms"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "sales",
+      "role": "Sales Agent",
+      "system_prompt": "You are the sales agent for KeyStone Realty. You qualify leads, recommend the right service or product, and move interested customers to a booking or purchase. Ask discovery questions about needs, timing and budget — one at a time, never as an interrogation. Recommend specific offerings with real prices from the knowledge base, and always propose a clear next step (book now, request a quote, talk to a specialist). Record every qualified lead in the CRM. Be persuasive but honest: never oversell, never invent discounts, and respect a clear 'no' immediately. Industry specifics: qualify buyers on budget, pre-approval status, must-haves and timeline; qualify sellers on address, property type, timeframe and motivation, then book a free appraisal. Feed every qualified lead into the CRM with structured notes. You may share published comparable sales, never private vendor information or other buyers' offers. Key facts — opening hours: Mon-Sat 9:00-18:00. Services and prices: Free market appraisal: free; Sales commission: 1.8-2.5%; Property management: 7% of rent; Rental listing fee: 1 week rent; Photography package: $350. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "hubspot",
+        "custom_api"
+      ],
+      "memory": [
+        "session",
+        "customer",
+        "vector"
+      ],
+      "model": "auto"
+    }
+  ],
+  "supervisor": {
+    "enabled": true,
+    "routing_prompt": "You are the supervisor for KeyStone Realty Assistant. Read the customer's message and reply with ONLY the id of the best team member: 'receptionist' for receptionist matters; 'booking' for booking specialist matters; 'sales' for sales agent matters. Answer with exactly one id."
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "ref": null,
+        "position": {
+          "x": 40,
+          "y": 220
+        }
+      },
+      {
+        "id": "supervisor",
+        "type": "condition",
+        "ref": "supervisor",
+        "position": {
+          "x": 300,
+          "y": 220
+        }
+      },
+      {
+        "id": "agent_receptionist",
+        "type": "agent",
+        "ref": "receptionist",
+        "position": {
+          "x": 580,
+          "y": 60
+        }
+      },
+      {
+        "id": "agent_booking",
+        "type": "agent",
+        "ref": "booking",
+        "position": {
+          "x": 580,
+          "y": 210
+        }
+      },
+      {
+        "id": "agent_sales",
+        "type": "agent",
+        "ref": "sales",
+        "position": {
+          "x": 580,
+          "y": 360
+        }
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "ref": null,
+        "position": {
+          "x": 880,
+          "y": 220
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "input",
+        "target": "supervisor",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_receptionist",
+        "condition": "route == 'receptionist'"
+      },
+      {
+        "source": "agent_receptionist",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_booking",
+        "condition": "route == 'booking'"
+      },
+      {
+        "source": "agent_booking",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_sales",
+        "condition": "route == 'sales'"
+      },
+      {
+        "source": "agent_sales",
+        "target": "output",
+        "condition": null
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "booking",
+      "type": "builtin",
+      "provider": "booking",
+      "config": {}
+    },
+    {
+      "name": "custom_api",
+      "type": "builtin",
+      "provider": "custom_api",
+      "config": {}
+    },
+    {
+      "name": "faq_rag",
+      "type": "builtin",
+      "provider": "faq_rag",
+      "config": {}
+    },
+    {
+      "name": "google_calendar",
+      "type": "builtin",
+      "provider": "google_calendar",
+      "config": {}
+    },
+    {
+      "name": "hubspot",
+      "type": "builtin",
+      "provider": "hubspot",
+      "config": {}
+    },
+    {
+      "name": "twilio_sms",
+      "type": "builtin",
+      "provider": "twilio_sms",
+      "config": {}
+    }
+  ],
+  "rag": {
+    "enabled": true,
+    "vector_store": "pgvector",
+    "embedding_model": "text-embedding-3-small",
+    "sources": [
+      {
+        "type": "url",
+        "description": "Live listings feed"
+      },
+      {
+        "type": "faq",
+        "description": "Commission structure, appraisal process"
+      }
+    ]
+  },
+  "memory": {
+    "short_term": true,
+    "long_term": true,
+    "vector": true,
+    "session": true,
+    "customer": true
+  },
+  "integrations": [
+    "whatsapp",
+    "gmail",
+    "hubspot"
+  ],
+  "deployment": {
+    "mode": "docker",
+    "channels": [
+      "web",
+      "whatsapp"
+    ]
+  }
+}

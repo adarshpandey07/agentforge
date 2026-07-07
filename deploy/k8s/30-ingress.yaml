@@ -1,0 +1,41 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: agentforge
+  namespace: agentforge
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    cert-manager.io/cluster-issuer: letsencrypt-prod # requires cert-manager
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - agentforge.example.com
+      secretName: agentforge-tls
+  rules:
+    - host: agentforge.example.com
+      http:
+        paths:
+          # API + health + metrics route to the backend
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+          # Everything else -> Next.js frontend
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000

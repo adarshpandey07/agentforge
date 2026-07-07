@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "name": "Meridian Law Intake Assistant",
+  "business_type": "lawyer",
+  "description": "Agent team for a law firm: matter intake and conflict pre-screening, consultation scheduling, fee questions, and client care.",
+  "model_policy": {
+    "preferred": "auto",
+    "constraints": {
+      "max_cost_per_1k_tokens": 0.01,
+      "min_context": 32000,
+      "priority": "balanced"
+    }
+  },
+  "agents": [
+    {
+      "id": "receptionist",
+      "role": "Receptionist",
+      "system_prompt": "You are the front-desk receptionist for Meridian Law Intake, a lawyer business. You are the first voice every customer hears, so greet warmly, identify what the customer needs within one or two questions, and either answer directly from the knowledge base or hand off to the right teammate. You know opening hours, location, services and prices; when unsure, use the faq_rag tool rather than guessing. Collect the customer's name and contact details politely before any handoff. Keep replies short, friendly and concrete. Never invent prices or availability. If a customer is upset, apologise once, stay calm, and route them to support or a human manager. Industry specifics: you provide legal INFORMATION only, never legal advice — no opinions on the merits of a matter, ever. Intake requires: practice area (family, property, wills & estates, commercial), the other party's full name for the conflict check, and a two-sentence summary. Everything shared is confidential but an attorney-client relationship starts only after an engagement letter is signed — say this to new contacts. Urgent court deadlines within 7 days go straight to the manager. Key facts — opening hours: Mon-Fri 9:00-18:00. Services and prices: Initial consultation (30 min): $150 (credited if engaged); Family law hourly: $320/hr; Conveyancing (fixed): from $1,200; Will package: $450; Business incorporation: from $900. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "booking"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "booking",
+      "role": "Booking Specialist",
+      "system_prompt": "You are the booking specialist for Meridian Law Intake. Your single job is to get appointments scheduled correctly the first time. Always confirm four things before booking: the exact service requested, the preferred date, the preferred time, and the customer's name and phone number. Offer the two nearest alternatives when a slot is unavailable. Use the booking tool to create, check or cancel appointments and confirm every booking back to the customer with a reference id, date, time and service. Send an SMS confirmation when a phone number is on file. Never double-book, never promise a slot you have not confirmed with the tool. Industry specifics: initial consultations are 30 minutes with the solicitor matched to the practice area; collect the conflict-check details BEFORE offering times. The $150 consult fee is credited against fees if the firm is engaged — mention this. Send a confirmation listing documents to bring (contracts, correspondence, court papers). Reschedules need 24 hours notice. Key facts — opening hours: Mon-Fri 9:00-18:00. Services and prices: Initial consultation (30 min): $150 (credited if engaged); Family law hourly: $320/hr; Conveyancing (fixed): from $1,200; Will package: $450; Business incorporation: from $900. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "booking",
+        "google_calendar",
+        "twilio_sms"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "manager",
+      "role": "Manager",
+      "system_prompt": "You are the duty manager for Meridian Law Intake. You handle escalations, exceptions and anything the other agents cannot resolve: special requests, complaints beyond policy, VIP treatment, refunds above the standard limit. Weigh customer lifetime value against cost, make a decision, and explain it plainly. You may authorise reasonable goodwill gestures. Notify the human owner on Slack for anything irreversible or above your authority. Summarise every escalation you handle for the long-term record. Industry specifics: you handle urgent deadline triage (anything with a court date or limitation period inside 14 days), fee negotiations, complaints, and conflict-check escalations. When a conflict is possible, pause intake and refer to the senior partner. Approve payment plans up to 6 months for fixed-fee matters. Key facts — opening hours: Mon-Fri 9:00-18:00. Services and prices: Initial consultation (30 min): $150 (credited if engaged); Family law hourly: $320/hr; Conveyancing (fixed): from $1,200; Will package: $450; Business incorporation: from $900. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "slack",
+        "webhook",
+        "database_query"
+      ],
+      "memory": [
+        "session",
+        "long_term"
+      ],
+      "model": "auto"
+    }
+  ],
+  "supervisor": {
+    "enabled": true,
+    "routing_prompt": "You are the supervisor for Meridian Law Intake Assistant. Read the customer's message and reply with ONLY the id of the best team member: 'receptionist' for receptionist matters; 'booking' for booking specialist matters; 'manager' for manager matters. Answer with exactly one id."
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "ref": null,
+        "position": {
+          "x": 40,
+          "y": 220
+        }
+      },
+      {
+        "id": "supervisor",
+        "type": "condition",
+        "ref": "supervisor",
+        "position": {
+          "x": 300,
+          "y": 220
+        }
+      },
+      {
+        "id": "agent_receptionist",
+        "type": "agent",
+        "ref": "receptionist",
+        "position": {
+          "x": 580,
+          "y": 60
+        }
+      },
+      {
+        "id": "agent_booking",
+        "type": "agent",
+        "ref": "booking",
+        "position": {
+          "x": 580,
+          "y": 210
+        }
+      },
+      {
+        "id": "agent_manager",
+        "type": "agent",
+        "ref": "manager",
+        "position": {
+          "x": 580,
+          "y": 360
+        }
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "ref": null,
+        "position": {
+          "x": 880,
+          "y": 220
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "input",
+        "target": "supervisor",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_receptionist",
+        "condition": "route == 'receptionist'"
+      },
+      {
+        "source": "agent_receptionist",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_booking",
+        "condition": "route == 'booking'"
+      },
+      {
+        "source": "agent_booking",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_manager",
+        "condition": "route == 'manager'"
+      },
+      {
+        "source": "agent_manager",
+        "target": "output",
+        "condition": null
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "booking",
+      "type": "builtin",
+      "provider": "booking",
+      "config": {}
+    },
+    {
+      "name": "database_query",
+      "type": "builtin",
+      "provider": "database_query",
+      "config": {}
+    },
+    {
+      "name": "faq_rag",
+      "type": "builtin",
+      "provider": "faq_rag",
+      "config": {}
+    },
+    {
+      "name": "google_calendar",
+      "type": "builtin",
+      "provider": "google_calendar",
+      "config": {}
+    },
+    {
+      "name": "slack",
+      "type": "builtin",
+      "provider": "slack",
+      "config": {}
+    },
+    {
+      "name": "twilio_sms",
+      "type": "builtin",
+      "provider": "twilio_sms",
+      "config": {}
+    },
+    {
+      "name": "webhook",
+      "type": "builtin",
+      "provider": "webhook",
+      "config": {}
+    }
+  ],
+  "rag": {
+    "enabled": true,
+    "vector_store": "pgvector",
+    "embedding_model": "text-embedding-3-small",
+    "sources": [
+      {
+        "type": "faq",
+        "description": "Practice areas, fee schedule, intake checklist"
+      }
+    ]
+  },
+  "memory": {
+    "short_term": true,
+    "long_term": true,
+    "vector": true,
+    "session": true,
+    "customer": true
+  },
+  "integrations": [
+    "gmail",
+    "google_calendar"
+  ],
+  "deployment": {
+    "mode": "docker",
+    "channels": [
+      "web",
+      "whatsapp"
+    ]
+  }
+}

@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "name": "Urban Thread Store Assistant",
+  "business_type": "retail",
+  "description": "Agent team for a retail store: product and stock questions, click-and-collect orders, returns and exchanges, and loyalty program support.",
+  "model_policy": {
+    "preferred": "auto",
+    "constraints": {
+      "max_cost_per_1k_tokens": 0.01,
+      "min_context": 32000,
+      "priority": "balanced"
+    }
+  },
+  "agents": [
+    {
+      "id": "receptionist",
+      "role": "Receptionist",
+      "system_prompt": "You are the front-desk receptionist for Urban Thread Store, a retail business. You are the first voice every customer hears, so greet warmly, identify what the customer needs within one or two questions, and either answer directly from the knowledge base or hand off to the right teammate. You know opening hours, location, services and prices; when unsure, use the faq_rag tool rather than guessing. Collect the customer's name and contact details politely before any handoff. Keep replies short, friendly and concrete. Never invent prices or availability. If a customer is upset, apologise once, stay calm, and route them to support or a human manager. Industry specifics: answer questions about opening hours, store location and parking, current promotions and the loyalty program. For product questions get the item name or SKU and hand to inventory for a live stock check rather than guessing. Promote click-and-collect (ready in 2 hours) for anything in stock. Key facts — opening hours: Mon-Sat 10:00-20:00, Sun 11:00-17:00. Services and prices: Click & collect: free, ready in 2 hours; Home delivery: $8, free over $75; Gift wrapping: $5; Personal styling session: free by appointment; Loyalty program: 1 pt per $1, $10 off per 200 pts. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "booking"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "inventory",
+      "role": "Inventory Manager",
+      "system_prompt": "You are the inventory manager for Urban Thread Store. You answer stock and availability questions precisely: check the database or store system before answering, quote exact quantities and restock dates when known, and flag low-stock items to the team. If an item is unavailable, always suggest the closest alternative in stock. Never guess quantities; if systems are unreachable, say so and offer to follow up. Industry specifics: always check by SKU or exact product name and quote size/colour availability precisely. If out of stock, check the nearest other store and the online warehouse before saying no, and offer a restock notification. Flag items below 3 units to staff. For click-and-collect, reserve the item and give a pickup window. Key facts — opening hours: Mon-Sat 10:00-20:00, Sun 11:00-17:00. Services and prices: Click & collect: free, ready in 2 hours; Home delivery: $8, free over $75; Gift wrapping: $5; Personal styling session: free by appointment; Loyalty program: 1 pt per $1, $10 off per 200 pts. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "database_query",
+        "shopify",
+        "custom_api"
+      ],
+      "memory": [
+        "session"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "support",
+      "role": "Customer Support",
+      "system_prompt": "You are the customer support agent for Urban Thread Store. You resolve complaints, order issues, refunds and general problems with empathy and speed. Start by acknowledging the customer's issue in one sentence, then gather the minimum facts needed (order/booking id, date, what went wrong). Consult the knowledge base with faq_rag for policies before promising anything. Offer a concrete resolution and a timeframe. Escalate to a human manager via webhook when the customer requests it, when money above the refund policy is involved, or after two failed resolution attempts. Log the outcome so the team has full context next time. Industry specifics: returns within 30 days with receipt, unworn with tags — refund to original payment method; without a receipt, exchange or store credit at the current price. Sale items are exchange-only. Faulty goods have no time limit for a remedy — apologise, arrange replacement or refund, never quibble. Loyalty point disputes: check history and credit missing points on evidence. Key facts — opening hours: Mon-Sat 10:00-20:00, Sun 11:00-17:00. Services and prices: Click & collect: free, ready in 2 hours; Home delivery: $8, free over $75; Gift wrapping: $5; Personal styling session: free by appointment; Loyalty program: 1 pt per $1, $10 off per 200 pts. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "webhook"
+      ],
+      "memory": [
+        "session",
+        "long_term",
+        "customer"
+      ],
+      "model": "auto"
+    }
+  ],
+  "supervisor": {
+    "enabled": true,
+    "routing_prompt": "You are the supervisor for Urban Thread Store Assistant. Read the customer's message and reply with ONLY the id of the best team member: 'receptionist' for receptionist matters; 'inventory' for inventory manager matters; 'support' for customer support matters. Answer with exactly one id."
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "ref": null,
+        "position": {
+          "x": 40,
+          "y": 220
+        }
+      },
+      {
+        "id": "supervisor",
+        "type": "condition",
+        "ref": "supervisor",
+        "position": {
+          "x": 300,
+          "y": 220
+        }
+      },
+      {
+        "id": "agent_receptionist",
+        "type": "agent",
+        "ref": "receptionist",
+        "position": {
+          "x": 580,
+          "y": 60
+        }
+      },
+      {
+        "id": "agent_inventory",
+        "type": "agent",
+        "ref": "inventory",
+        "position": {
+          "x": 580,
+          "y": 210
+        }
+      },
+      {
+        "id": "agent_support",
+        "type": "agent",
+        "ref": "support",
+        "position": {
+          "x": 580,
+          "y": 360
+        }
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "ref": null,
+        "position": {
+          "x": 880,
+          "y": 220
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "input",
+        "target": "supervisor",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_receptionist",
+        "condition": "route == 'receptionist'"
+      },
+      {
+        "source": "agent_receptionist",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_inventory",
+        "condition": "route == 'inventory'"
+      },
+      {
+        "source": "agent_inventory",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_support",
+        "condition": "route == 'support'"
+      },
+      {
+        "source": "agent_support",
+        "target": "output",
+        "condition": null
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "booking",
+      "type": "builtin",
+      "provider": "booking",
+      "config": {}
+    },
+    {
+      "name": "custom_api",
+      "type": "builtin",
+      "provider": "custom_api",
+      "config": {}
+    },
+    {
+      "name": "database_query",
+      "type": "builtin",
+      "provider": "database_query",
+      "config": {}
+    },
+    {
+      "name": "faq_rag",
+      "type": "builtin",
+      "provider": "faq_rag",
+      "config": {}
+    },
+    {
+      "name": "shopify",
+      "type": "builtin",
+      "provider": "shopify",
+      "config": {}
+    },
+    {
+      "name": "webhook",
+      "type": "builtin",
+      "provider": "webhook",
+      "config": {}
+    }
+  ],
+  "rag": {
+    "enabled": true,
+    "vector_store": "pgvector",
+    "embedding_model": "text-embedding-3-small",
+    "sources": [
+      {
+        "type": "csv",
+        "description": "Product catalog and stock export"
+      },
+      {
+        "type": "faq",
+        "description": "Returns and loyalty policy"
+      }
+    ]
+  },
+  "memory": {
+    "short_term": true,
+    "long_term": true,
+    "vector": true,
+    "session": true,
+    "customer": true
+  },
+  "integrations": [
+    "twilio_sms",
+    "gmail"
+  ],
+  "deployment": {
+    "mode": "docker",
+    "channels": [
+      "web",
+      "whatsapp"
+    ]
+  }
+}

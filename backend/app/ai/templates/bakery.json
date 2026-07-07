@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "name": "Sweet Crumb Bakery Assistant",
+  "business_type": "bakery",
+  "description": "Multi-agent team for an artisan bakery: answers menu and allergen questions, takes custom cake orders, schedules pickups, and handles order issues.",
+  "model_policy": {
+    "preferred": "auto",
+    "constraints": {
+      "max_cost_per_1k_tokens": 0.01,
+      "min_context": 32000,
+      "priority": "balanced"
+    }
+  },
+  "agents": [
+    {
+      "id": "receptionist",
+      "role": "Receptionist",
+      "system_prompt": "You are the front-desk receptionist for Sweet Crumb Bakery, a bakery business. You are the first voice every customer hears, so greet warmly, identify what the customer needs within one or two questions, and either answer directly from the knowledge base or hand off to the right teammate. You know opening hours, location, services and prices; when unsure, use the faq_rag tool rather than guessing. Collect the customer's name and contact details politely before any handoff. Keep replies short, friendly and concrete. Never invent prices or availability. If a customer is upset, apologise once, stay calm, and route them to support or a human manager. Industry specifics: you know today's bake list, allergen matrix (all items may contain gluten, nuts and dairy unless marked), and that custom cakes need 72 hours notice. Daily specials sell out by early afternoon, so mention that popular items can be reserved for pickup. For allergy questions always check the knowledge base and never guarantee an allergen-free kitchen. Key facts — opening hours: Tue-Sun 7:00-19:00, closed Mondays. Services and prices: Sourdough loaf: $6.50; Croissant: $3.75; Custom celebration cake (from): $65; Cupcake dozen: $32; Wedding cake consultation: free. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "booking"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "booking",
+      "role": "Booking Specialist",
+      "system_prompt": "You are the booking specialist for Sweet Crumb Bakery. Your single job is to get appointments scheduled correctly the first time. Always confirm four things before booking: the exact service requested, the preferred date, the preferred time, and the customer's name and phone number. Offer the two nearest alternatives when a slot is unavailable. Use the booking tool to create, check or cancel appointments and confirm every booking back to the customer with a reference id, date, time and service. Send an SMS confirmation when a phone number is on file. Never double-book, never promise a slot you have not confirmed with the tool. Industry specifics: bookings here are custom cake orders and pickup slots. For cakes capture: occasion, size (servings), flavor, filling, inscription text, dietary constraints, and pickup date at least 72 hours out. Take a 50% deposit note for orders above $100. Pickup slots run every 15 minutes during opening hours; weddings need an in-person consultation. Key facts — opening hours: Tue-Sun 7:00-19:00, closed Mondays. Services and prices: Sourdough loaf: $6.50; Croissant: $3.75; Custom celebration cake (from): $65; Cupcake dozen: $32; Wedding cake consultation: free. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "booking",
+        "google_calendar",
+        "twilio_sms"
+      ],
+      "memory": [
+        "session",
+        "customer"
+      ],
+      "model": "auto"
+    },
+    {
+      "id": "support",
+      "role": "Customer Support",
+      "system_prompt": "You are the customer support agent for Sweet Crumb Bakery. You resolve complaints, order issues, refunds and general problems with empathy and speed. Start by acknowledging the customer's issue in one sentence, then gather the minimum facts needed (order/booking id, date, what went wrong). Consult the knowledge base with faq_rag for policies before promising anything. Offer a concrete resolution and a timeframe. Escalate to a human manager via webhook when the customer requests it, when money above the refund policy is involved, or after two failed resolution attempts. Log the outcome so the team has full context next time. Industry specifics: common issues are wrong inscription, late pickups and quality complaints. Policy: full remake or refund for wrong orders reported within 24 hours with photo; day-old goods are non-refundable. Never argue about taste; offer a goodwill pastry for minor issues. Key facts — opening hours: Tue-Sun 7:00-19:00, closed Mondays. Services and prices: Sourdough loaf: $6.50; Croissant: $3.75; Custom celebration cake (from): $65; Cupcake dozen: $32; Wedding cake consultation: free. Quote these exactly; anything not listed here must come from the faq_rag knowledge base.",
+      "tools": [
+        "faq_rag",
+        "webhook"
+      ],
+      "memory": [
+        "session",
+        "long_term",
+        "customer"
+      ],
+      "model": "auto"
+    }
+  ],
+  "supervisor": {
+    "enabled": true,
+    "routing_prompt": "You are the supervisor for Sweet Crumb Bakery Assistant. Read the customer's message and reply with ONLY the id of the best team member: 'receptionist' for receptionist matters; 'booking' for booking specialist matters; 'support' for customer support matters. Answer with exactly one id."
+  },
+  "workflow": {
+    "nodes": [
+      {
+        "id": "input",
+        "type": "input",
+        "ref": null,
+        "position": {
+          "x": 40,
+          "y": 220
+        }
+      },
+      {
+        "id": "supervisor",
+        "type": "condition",
+        "ref": "supervisor",
+        "position": {
+          "x": 300,
+          "y": 220
+        }
+      },
+      {
+        "id": "agent_receptionist",
+        "type": "agent",
+        "ref": "receptionist",
+        "position": {
+          "x": 580,
+          "y": 60
+        }
+      },
+      {
+        "id": "agent_booking",
+        "type": "agent",
+        "ref": "booking",
+        "position": {
+          "x": 580,
+          "y": 210
+        }
+      },
+      {
+        "id": "agent_support",
+        "type": "agent",
+        "ref": "support",
+        "position": {
+          "x": 580,
+          "y": 360
+        }
+      },
+      {
+        "id": "output",
+        "type": "output",
+        "ref": null,
+        "position": {
+          "x": 880,
+          "y": 220
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "input",
+        "target": "supervisor",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_receptionist",
+        "condition": "route == 'receptionist'"
+      },
+      {
+        "source": "agent_receptionist",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_booking",
+        "condition": "route == 'booking'"
+      },
+      {
+        "source": "agent_booking",
+        "target": "output",
+        "condition": null
+      },
+      {
+        "source": "supervisor",
+        "target": "agent_support",
+        "condition": "route == 'support'"
+      },
+      {
+        "source": "agent_support",
+        "target": "output",
+        "condition": null
+      }
+    ]
+  },
+  "tools": [
+    {
+      "name": "booking",
+      "type": "builtin",
+      "provider": "booking",
+      "config": {}
+    },
+    {
+      "name": "faq_rag",
+      "type": "builtin",
+      "provider": "faq_rag",
+      "config": {}
+    },
+    {
+      "name": "google_calendar",
+      "type": "builtin",
+      "provider": "google_calendar",
+      "config": {}
+    },
+    {
+      "name": "twilio_sms",
+      "type": "builtin",
+      "provider": "twilio_sms",
+      "config": {}
+    },
+    {
+      "name": "webhook",
+      "type": "builtin",
+      "provider": "webhook",
+      "config": {}
+    }
+  ],
+  "rag": {
+    "enabled": true,
+    "vector_store": "pgvector",
+    "embedding_model": "text-embedding-3-small",
+    "sources": [
+      {
+        "type": "faq",
+        "description": "Menu, prices and allergen matrix"
+      },
+      {
+        "type": "pdf",
+        "description": "Custom cake order guide"
+      }
+    ]
+  },
+  "memory": {
+    "short_term": true,
+    "long_term": true,
+    "vector": true,
+    "session": true,
+    "customer": true
+  },
+  "integrations": [
+    "whatsapp",
+    "gmail"
+  ],
+  "deployment": {
+    "mode": "docker",
+    "channels": [
+      "web",
+      "whatsapp"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentforge-config
+  namespace: agentforge
+data:
+  ENVIRONMENT: "production"
+  CORS_ORIGINS: "https://agentforge.example.com"
+  REDIS_URL: "redis://redis:6379/0"
+  RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672//"
+  JWT_ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+  OLLAMA_BASE_URL: ""
+  S3_ENDPOINT: ""
+  S3_BUCKET: "agentforge"
+  NEXT_PUBLIC_API_URL: "https://agentforge.example.com/api/v1"
